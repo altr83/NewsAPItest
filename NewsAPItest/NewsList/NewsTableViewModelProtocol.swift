@@ -12,5 +12,4 @@ protocol NewsTabelViewModelProtocol: class {
     func fetchData()
     func saveData()
     func retriveData() -> Results<News>
-    func removeData()
 }

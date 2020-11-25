@@ -36,14 +36,8 @@ class NewsTableViewModel: NewsTabelViewModelProtocol {
     func saveData() {
         try! realm.write {
             for n in news {
-                realm.add(n)
+                realm.add(n, update: .all)
             }
-        }
-    }
-    
-    func removeData() {
-        try! realm.write {
-            realm.deleteAll()
         }
     }
     
@@ -53,7 +47,7 @@ class NewsTableViewModel: NewsTabelViewModelProtocol {
     }
     
     func parseJSON(j:JSON) {
-        self.removeData()
+        realm.autorefresh = true
         if let articles = j["articles"].array {
             for f in articles {
                 let newn = News()
