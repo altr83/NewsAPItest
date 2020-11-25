@@ -19,7 +19,9 @@ class NewsTableViewController: UIViewController {
     private var res: Results<News>!
     private var indc: UIActivityIndicatorView!
     private var refreshNewsControl: UIRefreshControl!
-    private var query: String?
+    private var searchController: UISearchController!
+    private var query = BehaviorRelay<String>(value: "")
+    private var newsArr = [News]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,6 +29,16 @@ class NewsTableViewController: UIViewController {
         tv = UITableView()
         indc = UIActivityIndicatorView()
         refreshNewsControl = UIRefreshControl()
+        searchController = UISearchController(searchResultsController: nil)
+        searchController.searchBar.delegate = self
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "Search"
+        searchController.hidesNavigationBarDuringPresentation = false
+        searchController.searchBar.searchBarStyle = .minimal
+        navigationItem.searchController = searchController
+        definesPresentationContext = true
+        tv.tableHeaderView = searchController.searchBar
         refreshNewsControl.attributedTitle = NSAttributedString(string: "Pull to refresh")
         refreshNewsControl.addTarget(self, action: #selector(self.refreshData), for: .valueChanged)
         tv.addSubview(refreshNewsControl)
@@ -35,8 +47,6 @@ class NewsTableViewController: UIViewController {
         indc.color = .black
         tv.isHidden = true
         refreshData()
-        query = " "
-        filterNews()
         initUI()
     }
     
@@ -61,8 +71,8 @@ class NewsTableViewController: UIViewController {
         tv.isHidden = false
     }
     
-    func filterNews() {
-        res = res.filter("title CONTAINS %@", query ?? " ")
+    func filterNews(q: String) {
+        newsArr = Array(res.filter("title CONTAINS %@", q))
         _ = Observable.changeset(from: res)
             .subscribe(onNext: { [weak self] _, changes in
                 if let changes = changes {
@@ -77,13 +87,13 @@ class NewsTableViewController: UIViewController {
 
 extension NewsTableViewController: UITableViewDelegate, UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return res?.count ?? 0
+        return newsArr.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = NewsCell()
-        if indexPath.row < res.count {
-            cell.data = res[indexPath.row]
+        if indexPath.row < newsArr.count {
+            cell.data = newsArr[indexPath.row]
             return cell
         } else {
             return cell
@@ -98,3 +108,17 @@ extension NewsTableViewController: UITableViewDelegate, UITableViewDataSource {
     }
 }
 
+extension NewsTableViewController: UISearchResultsUpdating, UISearchBarDelegate {
+    func updateSearchResults(for searchController: UISearchController) {
+        searchController.searchBar.rx.text
+            .orEmpty
+            .changed
+            .bind(to: query)
+        if self.query.value == "" {
+            self.newsArr = Array(res)
+        } else {
+            self.filterNews(q: self.query.value)
+        }
+        print(self.query.value)
+    }
+}
